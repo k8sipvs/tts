@@ -1,0 +1,147 @@
+name: k8s-kind
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull Request number from Kubernetes repo (optional)"
+        required: false
+        type: string
+
+env:
+  KIND_VERSION: v0.31.0
+  NODE_IMAGE_NAME: kindest/node:ci
+  GO_VERSION: "1.25.6"
+  KUBE_BUILD_PLATFORMS: linux/amd64
+
+jobs:
+  build:
+    name: Build Kubernetes + kind image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: 'a'
+
+      - name: Free up space
+        run: bash ./cleanup.sh
+        working-directory: 'a'
+
+      - name: Checkout Kubernetes
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: k8sipvs/kubernetes
+          ref: refs/heads/master
+
+      - name: Fetch PR from Kubernetes upstream repo
+        if: ${{ inputs.pr_number != '' && inputs.pr_number != null }}
+        run: |
+          PR_NUMBER=${{ inputs.pr_number }}
+          REPO_OWNER=kubernetes
+          REPO_NAME=kubernetes
+
+          git remote add external https://github.com/$REPO_OWNER/$REPO_NAME.git
+          git fetch external pull/$PR_NUMBER/head:external-pr
+          git checkout external-pr
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            conntrack \
+            socat \
+            iptables \
+            ethtool \
+            ebtables \
+            ca-certificates \
+            curl
+
+      - name: Install kind
+        run: |
+          curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+
+      - name: Build Kubernetes
+        run: |
+          make quick-release
+
+      - name: Build kind node image
+        run: |
+          kind build node-image --image ${NODE_IMAGE_NAME}
+
+      - name: Save node image
+        run: |
+          docker save ${NODE_IMAGE_NAME} | gzip > node-image.tar.gz
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kind-node-image
+          path: node-image.tar.gz
+
+      - name: Download node image
+        uses: actions/download-artifact@v4
+        with:
+          name: kind-node-image
+
+      - name: Load image
+        run: |
+          gunzip -c node-image.tar.gz | docker load
+
+      - name: Create cluster
+        run: |
+          kind create cluster \
+            --image ${NODE_IMAGE_NAME} \
+            --wait 5m
+
+      - name: Verify cluster
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
+
+      - name: Export kubeconfig
+        run: |
+          kind get kubeconfig > kubeconfig
+
+      - name: Upload kubeconfig
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: kubeconfig
+
+      - name: Download kubeconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: kubeconfig
+
+      - name: Set kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          mv kubeconfig ~/.kube/config
+
+      - name: Verify cluster again
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
