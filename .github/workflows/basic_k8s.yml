@@ -85,7 +85,7 @@ jobs:
 
       - name: Build Kubernetes
         run: |
-          make quick-release
+          make release
 
       - name: Build kind node image
         run: |
@@ -145,3 +145,7 @@ jobs:
         run: |
           kubectl get nodes
           kubectl get pods -A
+
+      - name: Run tests
+        run: |
+          make test
