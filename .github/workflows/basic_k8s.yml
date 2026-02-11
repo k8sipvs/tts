@@ -8,6 +8,12 @@ on:
         description: "Pull Request number from Kubernetes repo (optional)"
         required: false
         type: string
+      k8s_branch:
+        description: "Kubernetes branch to build"
+        required: false
+        default: "master"
+        type: string
+
 
 env:
   KIND_VERSION: v0.31.0
@@ -38,7 +44,7 @@ jobs:
         with:
           fetch-depth: 0
           repository: k8sipvs/kubernetes
-          ref: refs/heads/master
+          ref: refs/heads/{{ inputs.k8s_branch }}
 
       - name: Fetch PR from Kubernetes upstream repo
         if: ${{ inputs.pr_number != '' && inputs.pr_number != null }}
