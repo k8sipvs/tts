@@ -31,13 +31,6 @@ jobs:
       image-tag: ${{ steps.meta.outputs.tag }}
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          path: 'a'
-
-      - name: Free up space
-        run: bash ./cleanup.sh
-        working-directory: 'a'
 
       - name: Checkout Kubernetes
         uses: actions/checkout@v4
