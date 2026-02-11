@@ -44,7 +44,7 @@ jobs:
         with:
           fetch-depth: 0
           repository: k8sipvs/kubernetes
-          ref: refs/heads/{{ inputs.k8s_branch }}
+          ref: refs/heads/${{ inputs.k8s_branch }}
 
       - name: Fetch PR from Kubernetes upstream repo
         if: ${{ inputs.pr_number != '' && inputs.pr_number != null }}
