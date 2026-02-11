@@ -57,21 +57,22 @@ The primary automation logic resides in:
 ## 🔄 Workflow Diagram
 
 Below is a high-level execution flow of the CI process.
-
-``` mermaid
+```mermaid
 flowchart TD
-    A[Trigger: Manual Dispatch] --> B[Checkout Repository]
+    A[Trigger: Manual Dispatch] --> B[Checkout This Repository]
     B --> C[Clone Mirror of Upstream Kubernetes Repo]
     C --> D{PR Number Provided?}
     D -- Yes --> E[Fetch and Checkout PR Branch]
-    D -- No --> F[Checkout Default Branch (main)]
-    E --> F{Branch Name Prvided?}
-    F -- Yes --> E[Fetch and Checkout Branch]
-    F -- No -->F[Checkout Default Branch (main)]
-    G --> H[Build Kubernetes]
-    G --> H
-    H --> I[Run Test Suite]
-    I --> J[Collect Logs & Results]
+    D -- No --> F[Checkout Default Branch - main]
+    C --> L{Branch Name Provided?}
+    L -- Yes --> E[Fetch and Checkout Your Branch]
+    L -- No -->F[Checkout Default Branch - master]
+    E --> G[Build Kubernetes]
+    F --> G
+    G --> H[Run Test Suite]
+    H --> I[Collect Logs and Results]
+    I --> J[Execute cleanup.sh]
+    J --> K[Workflow Completed]
 ```
 
 ------------------------------------------------------------------------
