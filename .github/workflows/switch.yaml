@@ -1,0 +1,40 @@
+name: Test Kubernetes build
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull Request number from kubernetes repo (optional)"
+        required: false
+        type: string
+      k8s_branch:
+        description: "Kubernetes branch to build"
+        required: false
+        default: "main"
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Kubernetes branch (default: main)
+        if: ${{ inputs.pr_number == '' }}
+        run: |
+          BRANCH=${{ inputs.k8s_branch }}
+          git clone --depth 1 --branch $BRANCH https://github.com/kubernetes/kubernetes.git
+          cd kubernetes
+          echo "Checked out branch: $BRANCH"
+
+      - name: Fetch Kubernetes PR instead of branch
+        if: ${{ inputs.pr_number != '' }}
+        run: |
+          PR_NUMBER=${{ inputs.pr_number }}
+          git clone https://github.com/kubernetes/kubernetes.git
+          cd kubernetes
+          git fetch origin pull/$PR_NUMBER/head:pr-branch
+          git checkout pr-branch
+          echo "Checked out PR: $PR_NUMBER"
